@@ -28,7 +28,17 @@
 
 本项目使用了以下 `Python` 库。
 
-
+```
+PySide6 (https://doc.qt.io/qtforpython-6/index.html)
+Pillow (https://github.com/python-pillow/Pillow)
+opencv-python (https://github.com/opencv/opencv-python)
+psutil (https://github.com/giampaolo/psutil)
+```
 
 ## 开始贡献
 
+在提交代码或提出问题前，请先阅读[如何贡献](https://github.com/Wang-Yile/Desktop-UI/how_to_contribute.md)。
+
+## 联系我们
+
+如果有任何问题，欢迎联系我们或者开启一个 Issue。
