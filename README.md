@@ -20,7 +20,15 @@
 
 2. 安装 `Python 3.7` 或更高版本。**本项目可能会逐步使用 `Python 3.10` 的新语法特性，目前开发使用 `Python 3.11`**。
 
-3. 在 `GitHub` 上下载 `release`（已发行版本）文件夹，并运行其中的 `environment_setup.py`。
+3. 在 `GitHub` 上下载 `release`（已发行版本）文件夹，并运行其中的 `environment_setup.py`，按它的提示完成环境配置。
+
+4. 运行 `main.py`。
+
+## 我们使用的库
+
+本项目使用了以下 `Python` 库。
+
+
 
 ## 开始贡献
 
