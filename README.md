@@ -26,13 +26,15 @@
 
 ## 我们使用的库
 
-本项目使用了以下 `Python` 库。
+本项目使用了以下 `Python` 非标准库。
 
 ```
 PySide6 (https://doc.qt.io/qtforpython-6/index.html)
 Pillow (https://github.com/python-pillow/Pillow)
 opencv-python (https://github.com/opencv/opencv-python)
 psutil (https://github.com/giampaolo/psutil)
+requests (https://github.com/psf/requests)
+pyaudio
 ```
 
 ## 开始贡献
