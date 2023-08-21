@@ -19,6 +19,8 @@ def getFreeDisk(folder:str) -> int: # 单位: GB
     elif platform.system() == "Linux":
         st = os.statvfs(folder)
         free =  st.f_bavail * st.f_frsize/1024/1024
+    else:
+        free = 0
     return free
 
 def rootPath(folder:str) -> str:
@@ -52,7 +54,7 @@ def checkEnvironment() -> str:
 
 def setupPackage(package:str):
 
-    os.system(f"python -m pip install {package} \
+    os.system(f"python3 -m pip install {package} \
 -i http://mirrors.aliyun.com/pypi/simple/ \
 --trusted-host mirrors.aliyun.com")
 
@@ -75,6 +77,13 @@ def tryImportModule(module:str, import_name:str, msg:str=""):
         if confirmMessage(f"{module} hasn't satisfied yet, install now ?"+msg):
             setupPackage(module)
 
+def clearStdout():
+
+    if platform.system() == "Windows":
+        os.system("cls")
+    else:
+        os.system("clear")
+
 if __name__ == "__main__":
     for i in range(20):
         print("_Setup Environment_\n"[i], end="")
@@ -91,13 +100,15 @@ if __name__ == "__main__":
     tryImportModule("pip", "pip")
     tryImportModule("NumPy", "numpy")
     tryImportModule("Pillow", "PIL")
+    tryImportModule("opencv-python", "cv2")
+    tryImportModule("pyaudio", "pyaudio")
+    tryImportModule("requests", "requests")
     tryImportModule("psutil", "psutil")
     tryImportModule("Pyside6", "PySide6.QtWidgets")
-    # tryImportModule("opencv-python", "cv2")
-    tryImportModule("taichi", "taichi", "( Not necessary )")
     time.sleep(0.5)
     for i in range(50):
-        os.system("cls")
+        # os.system("cls")
+        clearStdout()
         print("|", end="")
         print("-"*i, end="|\n")
         print("|", end="")
