@@ -6,42 +6,26 @@ opencv-python
 pyaudio
 psutil
 requests
-NumPy
 PySide6
 """
 
 import os
-import random
 import sys
-import time
-from concurrent.futures import ThreadPoolExecutor
-from multiprocessing import Process, Queue, Value
 
-import cv2
-# import numpy as np
-# import matplotlib.font_manager as mfm
-# import matplotlib.pyplot as plt
-import psutil
-import requests
-# from matplotlib import mathtext
-# import taichi as ti
-from PIL import Image, UnidentifiedImageError
-from PySide6.QtCore import QPoint, Qt, QTimer, QUrl
-from PySide6.QtGui import (QBrush, QColor, QCursor, QFont, QImage, QPainter,
-                           QPen, QPixmap)
-from PySide6.QtWidgets import (QApplication, QFileDialog,
-                               QGraphicsDropShadowEffect, QGraphicsScene,
-                               QGraphicsTextItem, QGraphicsView, QLineEdit,
-                               QMainWindow)
+from PySide6.QtCore import QEvent, QPoint, QPointF, Qt, QTimer
+from PySide6.QtGui import QBrush, QColor, QCursor, QFont, QMouseEvent, QPen
+from PySide6.QtWidgets import (QApplication, QGraphicsDropShadowEffect,
+                               QGraphicsScene, QGraphicsTextItem,
+                               QGraphicsView, QLineEdit, QMainWindow)
 
-# import ImageQt
-import mediaCenter as serviceMediaCenter
-import monitor as serviceMonitor
-import window as winEffect
+import program as winProgram
+# import window as winEffect
 from graph import *
+from programapi import convertHEX2RGBA
+from programcon import *
 
 """
-附注 关于 ZValue 的说明
+附注 关于 ZValue 的说明^
 [-inf,0) 系统保留
 0 默认
 (0,100) 系统保留
@@ -55,202 +39,49 @@ from graph import *
 [1000,inf] 系统保留
 """
 
+# HOMEPAGE_CRYSTAL_BALL_COLOR = "#523d8f"
+
 if __name__ == "__main__":
-    # ti.init(arch=ti.gpu)
-    pool = ThreadPoolExecutor(max_workers=4)
 
-    ESC = 16777216
-    TAB = 16777217
-    BACKSPACE = 16777219
-    RETURN = 16777220
-    LITTLE_RETURN = 16777221
-    INSERT = 16777222
-    DELETE = 16777223
-    PAUSE = 16777224
-    HOME = 16777232
-    END = 16777233
-    SHIFT = 16777248
-    CTRL = 16777249
-    WIN = 16777250
-    ALT = 16777251
-    CAPSLOCK = 16777252
-    NUMSLOCK = 16777253
-    SCROLLLOCK = 16777254
-    F1 = 16777264
-    F2 = 16777265
-    F3 = 16777266
-    F4 = 16777267
-    F5 = 16777268
-    F6 = 16777269
-    F7 = 16777270
-    F8 = 16777271
-    F9 = 16777272
-    F10 = 16777273
-    F11 = 16777274
-    F12 = 16777275
-    RIGHT_ARROW = 16777301
+    # MENU_URL_INDEX = {
+    #     ">homepage": winProgram.HomePage,
+    #     ">monitor": winProgram.Monitor,
+    #     ">calculator": winProgram.Calculator,
+    #     ">note": "速记",
+    #     ">todo": "待办事项",
+    #     ">datetime": "时间&日期",
+    #     ">weather": "天气",
+    #     ">mediacenter": winProgram.MediaCenter,
+    #     ">encryption": "数据加密",
+    #     ">decryption": "数据解密",
+    #     ">steganography": "数据隐写",
+    #     ">settings": "设置",
+    #     ">newtab": "新标签页"
+    # }
+    MENU_URL_INDEX = {}
+    for i in winProgram.__all__:
+        tmp:winProgram.BaseProgram = eval("winProgram.%s"%i)
+        MENU_URL_INDEX[tmp.location.lower()] = tmp
 
-    # MAXIMUM_STAR = 5e3
+def clearTemp():
 
-    # MAIN_COLOR = "#000000"
-    MAIN_COLOR = "#ffffff"
-    # MAIN_CAPTION_COLOR = "#222222"
-    MAIN_CAPTION_COLOR = "#eeeeee"#"#00ff00"
-    # MAIN_BACKGROUND_COLOR = "#222222"
-    MAIN_BACKGROUND_COLOR = "#dddddd"#"#ff0000"
+    for i in os.listdir(os.getenv("temp")):
+        if i[:12] == "cached-sound":
+            os.remove(os.getenv("temp")+"\\"+i)
 
-    BUTTON_BACKGROUND_COLOR = "#336dab"
-    BUTTON_FOREGROUND_COLOR = "#ffffff"
-    BUTTON_LIGHT_COLOR = "#eeeeee"
+def exitProgram():
 
-    MAIN_TEXT_COLOR = "#ffffff"
-    MAIN_TEXT_COLOR = "#000000"
-    MAIN_LTEXT_COLOR = "#666666"
-    MAIN_L2TEXT_COLOR = "#bbbbbb"
+    for i in window._menu:
+        i.close()
+    window.hide()
+    try:
+        clearTemp()
+    except PermissionError as msg:
+        print("PermissionError:", msg)
+    finally:
+        sys.exit(0)
 
-    RADIUS = 5
-
-    CHUNK = 30 # 窗口更新速度(ms) 值越小窗口动画越流畅, 相应的资源占用更多 (默认为 10 [fps:100], 建议为 30 [fps:33.3])
-    MAX_CHUNK = 1000 # 窗口前台最长更新间隔(ms), 这用于动态刷新率 (由于 CHUNK_PERCENT 参数存在, 实际间隔可能更长)
-    CHUNK_PERCENT = 2 # 动态刷新率的增长速度, 这应当是一个大于1的数
-    SENSITIVITY = 8 # 设置窗口缩放灵敏度 值越大越灵敏 (建议为 5~10)
-
-    CLOSE_ANIMATION = -1
-
-    # HOMEPAGE_CRYSTAL_BALL_COLOR = "#523d8f"
-
-    MENU_URL_INDEX = {
-        ">homepage": "主页",
-        ">monitor": "资源监视器",
-        ">calculator": "计算器",
-        ">note": "速记",
-        ">todo": "待办事项",
-        ">datetime": "时间&日期",
-        ">weather": "天气",
-        ">mediacenter": "媒体中心",
-        ">encryption": "数据加密",
-        ">decryption": "数据解密",
-        ">steganography": "数据隐写",
-        ">settings": "设置",
-        ">newtab": "新标签页"
-    }
-
-    def getImageFromURL():
-
-        img = QImage()
-        while img.isNull():
-            index = random.randint(0, 23)
-            index2 = random.randint(0, 99)
-            string = str(index) + str(index2)
-            while len(string) < 4:
-                string = "0" + string
-            url = "https://cdn.eso.org/images/screen/eso%sa.jpg" % string
-            res = requests.get(url)
-            img = QImage.fromData(res.content)
-        return img
-
-    IMAGE_URLS = [
-        "eso0934a",
-        "eso1625a",
-        "eso1250a",
-        "eso1208a",
-        "eso1119a",
-        "eso0925a",
-        "eso1723a",
-        "eso1031a",
-        "eso1031b",
-        "eso0650a",
-        "eso1006a",
-        "eso1422a",
-        "eso1233a",
-        "potw1119a",
-        "eso0926a"
-    ]
-    IMAGE_CONNECTED = False
-
-    def getImageFromURL2():
-
-        global IMAGE_CONNECTED
-        IMAGE_CONNECTED = False
-        if 1 == 2:
-            IMAGE_CONNECTED = True
-            img = QPixmap("background.jpeg")
-            return img
-        url = random.sample(IMAGE_URLS, 1)[0]
-        print("get background image from https://cdn.eso.org/images/screen/%s.jpg" % url)
-        url = "https://cdn.eso.org/images/screen/%s.jpg" % url
-        t = time.time()
-        res = requests.get(url)
-        print("connection costs %.3f s" % (time.time()-t))
-        img = QPixmap.fromImage(QImage.fromData(res.content))
-        IMAGE_CONNECTED = True
-        return img
-
-    IMAGE_THREAD = pool.submit(getImageFromURL2)
-
-    BACKGROUND_IMAGE = None
-
-    def convertHEX2RGBA(src:str):
-
-        r = int(src[1:3], 16)
-        g = int(src[3:5], 16)
-        b = int(src[5:7], 16)
-        return (r, g, b)
-
-    def convertMemory(src:int) -> str:
-
-        lst = (" B", " KB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB")
-        chunk = 1024
-        for i in lst:
-            if src < chunk:
-                return str(int(src*100)/100) + i
-            src /= chunk
-        return str(int(src*100)/100) + "YB"
-
-renderedLaTeX:dict[str, QPixmap] = {}
-
-# def renderAsLaTeX(latex, usetex=True, dpi=500, fontsize=20):
-
-#     # # https://blog.csdn.net/weixin_53366150/article/details/122942076
-#     # plt.figure(figsize=(0.3, 0.3))
-#     # plt.text(-0.3, 0.9, latex, fontsize=fontsize, usetex=usetex)
-#     # plt.ylim(0, 1)
-#     # plt.xlim(0, 6)
-#     # plt.axis("off")
-#     # plt.savefig(path, dpi=dpi, bbox_inches="tight")
-#     # plt.close()
-#     try:
-#         return renderedLaTeX[latex]
-#     except KeyError:
-#         pass
-#     prop = mfm.FontProperties(family="consolas", size=fontsize, weight="normal")
-#     mathtext.math_to_image(latex, "tmp.png", prop=prop, dpi=dpi)
-#     renderedLaTeX[latex] = QPixmap.fromImage(QImage("tmp.png"))
-#     return renderedLaTeX[latex]
-
-# @ti.func
-# def taichiDistance(x1, y1, x2, y2):
-
-#     return ti.sqrt(ti.pow(ti.abs(x1-x2), 2) + ti.pow(ti.abs(y1-y2), 2))
-
-# @ti.kernel
-# def taichiCrystalBall(arr:ti.types.ndarray(dtype=ti.int32, ndim=3)):
-
-#     center_x = arr.shape[0] // 2
-#     center_y = arr.shape[1] // 2
-#     radius = center_x
-#     ti.loop_config(serialize=True)
-#     for i in range(0, center_x):
-#         able = False
-#         for j in range(0, center_y):
-#             dis = taichiDistance(i, j, center_x, center_y)
-#             if able:
-#                 arr[i,j,3] = 255
-#             elif dis < radius:
-#                 arr[i,j,3] = 255
-#                 able = True
-
-class MainWindow(QMainWindow):
+class MainWindow(QGraphicsView):
 
     def __init__(self):
         
@@ -288,34 +119,20 @@ class MainWindow(QMainWindow):
         self._mainGroup = []
         self._leftButtonXBackgroundItem = None # 标签栏的关闭按钮背景
 
-        self._menu = [
-            [2, "计算器", ">calculator", {}],
-            # [-1, "新标签页", ">newtab", {}]
-        ]
-        self._startY = 60
-        self._index = 0
-
         self._messages = []
         self.addMessage(5, "欢迎", "Desktop UI 是自由软件，你可以在 GitHub 上查找和获取它的免费更新。", "system", [["了解详情", "https://github.com/Wang-Yile/Desktop-UI"], ["不再提示", "system:no_mention"]])
 
         self._scene = QGraphicsScene()
         self._scene.setBackgroundBrush(Qt.NoBrush)
-        self._view = QGraphicsView()
-        self._view.setBackgroundBrush(Qt.NoBrush)
-        self._view.mouseMoveEvent = self.mouseMoveEvent
-        self._view.mousePressEvent = self.mousePressEvent
-        self._view.mouseReleaseEvent = self.mouseReleaseEvent
-        self._view.setScene(self._scene)
-        self.setCentralWidget(self._view)
+        self.setBackgroundBrush(Qt.NoBrush)
+        self.setScene(self._scene)
 
         self.setWindowTitle("桌面")
-        self.setMinimumSize(600, 600)
+        self.setMinimumSize(400, 200)
         self.setMouseTracking(True)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint) # Qt.WindowStaysOnTopHint
         self.setAttribute(Qt.WA_TranslucentBackground)
-        # self.setStyleSheet(u"background: rgb(221, 221, 221); border-width: 3px; border-radius: %dpx" % RADIUS)
-        color = convertHEX2RGBA(MAIN_BACKGROUND_COLOR)
-        self.setStyleSheet(u"background: rgb(%d, %d, %d); border-radius: %dpx" % (color[0], color[1], color[2], RADIUS))
+        self.setStyleSheet("background: rgb(0, 0, 0); border-radius: %dpx" % RADIUS)
         effect = QGraphicsDropShadowEffect()
         effect.setOffset(0, 0)
         effect.setBlurRadius(10)
@@ -324,16 +141,8 @@ class MainWindow(QMainWindow):
         # self.setWindowOpacity(0.8)
         self.resize(1280, 720)
 
-        self._monitor_cpu = pool.submit(serviceMonitor.get_cpu_status)
-        self._monitor_cpu_percent = []
-        self._monitor_cpu_chartview = serviceMonitor.CPU_Monitor(psutil.cpu_count())
-        self._monitor_cpu_item = self._scene.addWidget(self._monitor_cpu_chartview.chartview)
-        self._monitor_cpu_item.setVisible(False)
-        self._monitor_memory = pool.submit(serviceMonitor.get_memory_status)
-        self._monitor_memory_info = None
-
-        self._win_effect = winEffect.WindowEffect()
-        self._win_effect.addShadowEffect(self.winId())
+        # self._win_effect = winEffect.WindowEffect()
+        # self._win_effect.addShadowEffect(self.winId())
 
         # self._timerId = self.startTimer(CHUNK)
         self._chunk = CHUNK
@@ -350,6 +159,12 @@ class MainWindow(QMainWindow):
         self._messageTimer.setInterval(100)
         self._messageTimer.start()
         self._messageTimer.timeout.connect(self.messageTimer)
+
+        self._menu:list[winProgram.BaseProgram] = [
+            winProgram.Calculator(self)
+        ]
+        self._startY = 60
+        self._index = 0
     
     def calculateLeftWidth(self) -> float:
 
@@ -437,7 +252,7 @@ class MainWindow(QMainWindow):
                     toUpdate = True
                 if index >= 0 and index == len(self._menu): # 新建标签页
                     self._index = index
-                    self._menu.append([0, "主页", ">homepage", {}])
+                    self._menu.append(MENU_URL_INDEX[">homepage"](self))
                     self._configured = True
                     toUpdate = True
             if realX >= 100 and realX <= self.width()-170 and realY >= 15 and realY <= 45:
@@ -452,6 +267,7 @@ class MainWindow(QMainWindow):
             self._chunk = CHUNK
             self._timer.setInterval(0)
             self._pageTimer.setInterval(0)
+        return super().mousePressEvent(event)
     
     def mouseMoveEvent(self, event):
 
@@ -485,20 +301,20 @@ class MainWindow(QMainWindow):
                     cursor_shape = Qt.SizeVerCursor
                 elif self._resizeMode == Qt.LeftEdge | Qt.TopEdge:
                     self.setGeometry(self._old_left + delta.x(), self._old_top + delta.y(), self._old_width - delta.x(), self._old_height - delta.y())
-                    cursor_shape = Qt.ArrowCursor
+                    cursor_shape = Qt.SizeFDiagCursor
                 elif self._resizeMode == Qt.RightEdge | Qt.TopEdge:
                     self.setGeometry(self._old_left, self._old_top + delta.y(), self._old_width + delta.x(), self._old_height - delta.y())
-                    cursor_shape = Qt.ArrowCursor
+                    cursor_shape = Qt.SizeBDiagCursor
                 elif self._resizeMode == Qt.LeftEdge | Qt.BottomEdge:
                     self.setGeometry(self._old_left + delta.x(), self._old_top, self._old_width - delta.x(), self._old_height + delta.y())
-                    cursor_shape = Qt.ArrowCursor
+                    cursor_shape = Qt.SizeBDiagCursor
                 elif self._resizeMode == Qt.RightEdge | Qt.BottomEdge:
                     self.setGeometry(self._old_left, self._old_top, self._old_width + delta.x(), self._old_height + delta.y())
+                    cursor_shape = Qt.SizeFDiagCursor
+                else:
                     cursor_shape = Qt.ArrowCursor
                 QApplication.setOverrideCursor(QCursor(cursor_shape))
             if self._onLeftDrag:
-                # if self.calculateLeftY(self._onLeftDragIndex)
-                # print(delta.y(), event.position().y())
                 if realY > 60 and realY < self.height():
                     self._onLeftRealDrag = True
                     index = self.calculateLeftIndex(realY)
@@ -516,10 +332,55 @@ class MainWindow(QMainWindow):
                     self._leftButtonXBackgroundItem.setPos(self.calculateLeftWidth()-30, self.calculateLeftY(index)+10)
                     self._leftButtonXBackgroundItem.setSize(20, 20)
                     self._scene.addItem(self._leftButtonXBackgroundItem)
+            moveMode = None
+            if realX < SENSITIVITY:
+                self._onResizeDrag = True
+                if not moveMode:
+                    moveMode = Qt.LeftEdge
+                else:
+                    moveMode |= Qt.LeftEdge
+            if realX > self.width()-SENSITIVITY:
+                self._onResizeDrag = True
+                if not moveMode:
+                    moveMode = Qt.RightEdge
+                else:
+                    moveMode |= Qt.RightEdge
+            if realY < SENSITIVITY:
+                self._onResizeDrag = True
+                if not moveMode:
+                    moveMode = Qt.TopEdge
+                else:
+                    moveMode |= Qt.TopEdge
+            if realY > self.height()-SENSITIVITY:
+                self._onResizeDrag = True
+                if not moveMode:
+                    moveMode = Qt.BottomEdge
+                else:
+                    moveMode |= Qt.BottomEdge
+            if moveMode == Qt.LeftEdge:
+                cursor_shape = Qt.SizeHorCursor
+            elif moveMode == Qt.RightEdge:
+                cursor_shape = Qt.SizeHorCursor
+            elif moveMode == Qt.TopEdge:
+                cursor_shape = Qt.SizeVerCursor
+            elif moveMode == Qt.BottomEdge:
+                cursor_shape = Qt.SizeVerCursor
+            elif moveMode == Qt.LeftEdge | Qt.TopEdge:
+                cursor_shape = Qt.SizeFDiagCursor
+            elif moveMode == Qt.RightEdge | Qt.TopEdge:
+                cursor_shape = Qt.SizeBDiagCursor
+            elif moveMode == Qt.LeftEdge | Qt.BottomEdge:
+                cursor_shape = Qt.SizeBDiagCursor
+            elif moveMode == Qt.RightEdge | Qt.BottomEdge:
+                cursor_shape = Qt.SizeFDiagCursor
+            else:
+                cursor_shape = Qt.ArrowCursor
+            QApplication.setOverrideCursor(QCursor(cursor_shape))
         if toUpdate:
             self._chunk = CHUNK
             self._timer.setInterval(0)
             self._pageTimer.setInterval(0)
+        return super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
 
@@ -572,57 +433,29 @@ class MainWindow(QMainWindow):
                     self._index -= 1
                     if self._index == -1:
                         self._index = 0
+                self._menu[self._onLeftHighLightIndex].close()
                 del self._menu[self._onLeftHighLightIndex]
                 if len(self._menu) == 0:
-                    exit()
+                    exitProgram()
                 if self._onLeftHighLightIndex >= len(self._menu):
                     self._onLeftHighLightIndex = 0
                 self._configured = True
                 toUpdate = True
-            x = self.calculateLeftWidth()+5
-            y = 60
-            width = self.calculateRightWidth()
-            height = self.height()-65
-            if self._menu[self._index][0] == 7: # 媒体中心
-                try:
-                    if not self._menu[self._index][3]["prepared"]:
-                        raise KeyError
-                except KeyError:
-                    if realX >= x+width/2-80 and realX <= x+width/2+80 and realY >= y+height/2-15 and realY <= y+height/2+15:
-                        filedialog = QFileDialog()
-                        file = filedialog.getOpenFileName(caption="打开媒体文件", dir="D:\\")
-                        filename = file[0]
-                        if filename != "":
-                            try:
-                                self._menu[self._index][3]["startT"] = Value("d", 0)
-                                self._menu[self._index][3]["pauseV"] = Value("b", False)
-                                self._menu[self._index][3]["video"] = cv2.VideoCapture(filename)
-                                if self._menu[self._index][3]["video"].get(5) == 0:
-                                    raise cv2.error("帧数为 0")
-                                try:
-                                    Image.open(filename)
-                                except UnidentifiedImageError:
-                                    pass
-                                else:
-                                    raise cv2.error("这是一张图片, 不允许使用媒体中心打开")
-                                # self._menu[self._index][3]["type"] = "video"
-                                self._menu[self._index][3]["audio"] = Process(target=serviceMediaCenter.sound, args=(filename, self._menu[self._index][3]["startT"], self._menu[self._index][3]["pauseV"]))
-                                self._menu[self._index][3]["audio"].daemon = True
-                                self._menu[self._index][3]["audio"].start()
-                                self._menu[self._index][3]["path"] = filename
-                                self._menu[self._index][3]["now"] = 0
-                                self._menu[self._index][3]["prepared"] = True
-                                self.addMessage(title="功能请求", message="需要完善的功能: 把打开视频作为单独的线程", source="self.mouseReleaseEvent")
-                            except cv2.error as msg:
-                                self.addMessage(title="cv2 错误", message=str(msg), source="mediaCenter", option=[["为什么会出现此错误", ":mediacenter:why_cv2error"]])
-                            except PermissionError as msg:
-                                self.addMessage(title="权限错误", message=str(msg), source="mediaCenter", option=[["为什么会出现此错误", ":mediacenter:why_permissionerror"]])
             QApplication.setOverrideCursor(QCursor(Qt.ArrowCursor))
+        x = self.calculateLeftWidth()+5
+        y = 60
+        width = self.calculateRightWidth()
+        height = self.height()-65
+        ppointf = QPointF(event.position().x()-x, event.position().y()-y)
+        if ppointf.x() > 0 and ppointf.y() > 0:
+            pevent = QMouseEvent(QEvent.Type.MouseButtonRelease, ppointf, Qt.LeftButton, Qt.NoButton, Qt.NoModifier)
+            self._menu[self._index].mouseReleaseEvent(pevent, x, y, width, height)
         if toUpdate:
             self._chunk = CHUNK
             self._timer.setInterval(0)
             self._pageTimer.setInterval(0)
-    
+        return super().mouseReleaseEvent(event)
+
     def wheelEvent(self, event):
         
         position = event.position()
@@ -648,7 +481,7 @@ class MainWindow(QMainWindow):
         self._timer.setInterval(0)
         self._pageTimer.setInterval(0)
         self._scene.setSceneRect(0, 0, self.width(), self.height())
-        self._view.setSceneRect(0, 0, self.width(), self.height())
+        self.setSceneRect(0, 0, self.width(), self.height())
     
     def keyPressEvent(self, event):
 
@@ -661,14 +494,13 @@ class MainWindow(QMainWindow):
                 try:
                     if self._location[0] != ">":
                         self._location = ">" + self._location
-                    lst = list(MENU_URL_INDEX)
-                    self._menu[self._index][0] = lst.index(self._location)
-                    self._menu[self._index][1] = MENU_URL_INDEX[self._location]
-                    self._menu[self._index][2] = self._location
-                    self._menu[self._index][3] = {}
+                    self._menu[self._index].close()
+                    self._menu[self._index] = MENU_URL_INDEX[self._location](self)
                     self._location = ""
                     self._configured = True
-                except ValueError as msg:
+                except KeyError as msg:
+                    self.addMessage(title="错误", message="输入的地址无效: %s"%self._location, source="self.keyPressEvent")
+                    self._location = ""
                     self.addMessage(title="功能请求", message="自动纠正, 模糊查找", source="self.keyPressEvent")
                 self._focusLocation = False
             elif key == BACKSPACE:
@@ -681,14 +513,15 @@ class MainWindow(QMainWindow):
                 except:
                     pass
             toUpdate = True
+        else:
+            self._menu[self._index].keyPressEvent(event)
         if toUpdate:
             self._chunk = CHUNK
             self._timer.setInterval(0)
             self._pageTimer.setInterval(0)
+        return super().keyPressEvent(event)
     
     def pageTimer(self):
-
-        global BACKGROUND_IMAGE
 
         self._pageChunk = self._chunk
         for i in self._pageGroup:
@@ -698,245 +531,10 @@ class MainWindow(QMainWindow):
         y = 60
         width = self.calculateRightWidth()
         height = self.height()-65
-        self._monitor_cpu_item.setVisible(False)
-        if self._menu[self._index][0] == 0: # 主页
-            if IMAGE_CONNECTED and BACKGROUND_IMAGE is None:
-                BACKGROUND_IMAGE = IMAGE_THREAD.result()
-            if IMAGE_CONNECTED and width > 0 and height > 0:
-                pixmap = BACKGROUND_IMAGE
-                item = QGraphicsRoundedRectangleExpandingImageItem()
-                item._image = pixmap
-                item.setRadius(RADIUS)
-                item.setPos(x, y)
-                item.setSize(width, height)
-                self._scene.addItem(item)
-                self._pageGroup.append(item)
-            item = QGraphicsTextItem()
-            item.setPlainText("版权所有 (C) The European Southern Observatory (ESO) 欧洲南方天文台")
-            item.setDefaultTextColor(QColor("#ffffff"))
-            item.setFont(QFont("微软雅黑", 8))
-            item.setOpacity(0.6)
-            item.setPos(x, y+height-20)
-            self._scene.addItem(item)
-            self._pageGroup.append(item)
-        elif self._menu[self._index][0] == 1: # 资源监视器
-            self._pageChunk = 1000
-            if self._monitor_cpu.done():
-                result = self._monitor_cpu.result()
-                self._monitor_cpu_percent = result.percent
-                self._monitor_cpu_chartview.push(result.tot_percent, result.freq[0].current)
-                self._monitor_cpu = pool.submit(serviceMonitor.get_cpu_status)
-            if self._monitor_memory.done():
-                self._monitor_memory_info = self._monitor_memory.result()
-                self._monitor_memory = pool.submit(serviceMonitor.get_memory_status)
-            xx = x
-            yy = y+height/2+1
-            ww = width/int(width/105)
-            hh = 20
-            index = 0
-            for i in self._monitor_cpu_percent:
-                item = QGraphicsRoundedRectangleItem()
-                item.setPenDefault(QPen(BUTTON_BACKGROUND_COLOR))
-                item.setBrush(Qt.NoBrush)
-                item.setRadius(RADIUS)
-                item.setPos(xx, yy)
-                item.setSize(ww-5, hh)
-                self._scene.addItem(item)
-                self._pageGroup.append(item)
-                item = QGraphicsTextItem()
-                item.setPlainText("CPU" + str(index) + " " + str(i) + "%")
-                item.setTextWidth(ww-15)
-                item.setPos(xx+5, yy)
-                self._scene.addItem(item)
-                self._pageGroup.append(item)
-                xx += ww
-                index += 1
-                if xx+ww > self.width():
-                    xx = x
-                    yy += hh+5
-            item = QGraphicsRoundedRectangleItem()
-            item.setPenDefault(QPen(BUTTON_BACKGROUND_COLOR))
-            item.setBrush(Qt.NoBrush)
-            item.setRadius(RADIUS)
-            item.setPos(x, (yy if xx == x else yy+hh+5))
-            item.setSize(width-5, hh*4)
-            self._scene.addItem(item)
-            self._pageGroup.append(item)
-            item = QGraphicsTextItem()
-            item.setPlainText("内存占用\n总计 \t" + convertMemory(self._monitor_memory_info.total) + 
-                              "\n已使用 \t" + convertMemory(self._monitor_memory_info.used) + 
-                              "\n未使用 \t" + convertMemory(self._monitor_memory_info.free) + 
-                              "\n百分比 \t" + str(self._monitor_memory_info.percent) + " %")
-            item.setPos(x, (yy if xx == x else yy+hh+5))
-            self._scene.addItem(item)
-            self._pageGroup.append(item)
-            self._monitor_cpu_item.setVisible(True)
-            self._monitor_cpu_item.setPos(x, y)
-            self._monitor_cpu_item.setMinimumSize(width, height/2)
-            self._monitor_cpu_item.setMaximumSize(width, height/2)
-            self._monitor_cpu_item.setZValue(100)
-        elif self._menu[self._index][0] == 2: # 计算器
-            try:
-                mode = self._menu[self._index][3]["mode"]
-            except KeyError:
-                self._menu[self._index][3]["mode"] = mode = "normal"
-            try:
-                mow = self._menu[self._index][3]["mow"]
-            except KeyError:
-                self._menu[self._index][3]["mow"] = mow = 0
-            if mode == "normal": # 标准计算器
-                # lst = [
-                #     ["$x^2$", "$\\frac{1}{x}$", "$C$", "$\\leftarrow$"],
-                #     ["$\\sqrt{x}$", "$\\sqrt[n]{x}$", "$x^n$", "$\\div$"],
-                #     ["$7$", "$8$", "$9$", "$\\times$"],
-                #     ["$4$", "$5$", "$6$", "$-$"],
-                #     ["$1$", "$2$", "$3$", "$+$"],
-                #     ["$\\pm$", "$0$", "$.$", "$=$"]
-                # ]
-                lst = [
-                    ["x²", "⅟x", "C", "←"],
-                    ["√x", "x√n", "xⁿ", "÷"],
-                    ["7", "8", "9", "×"],
-                    ["4", "5", "6", "-"],
-                    ["1", "2", "3", "+"],
-                    ["+/-", "0", ".", "="]
-                ]
-                item = QGraphicsRoundedRectangleItem()
-                item.setBrush(QBrush(BUTTON_LIGHT_COLOR))
-                item.setRadius(RADIUS)
-                item.setPos(x+5, y+5)
-                item.setSize(width-10, height/2)
-                self._scene.addItem(item)
-                self._pageGroup.append(item)
-                xx = x+5
-                yy = y+height/2+10
-                ww = int(width/4)
-                hh = int(height/12)-1
-                for i in lst:
-                    xx = x+5
-                    for j in i:
-                        # pixmap = renderAsLaTeX(j)
-                        # item = QGraphicsRoundedRectangleImageItem()
-                        # item._image = pixmap
-                        # item.setRadius(RADIUS)
-                        # item.setPos(xx, yy)
-                        # item.setSize(ww-5, 30)
-                        # self._scene.addItem(item)
-                        # self._pageGroup.append(item)
-                        item = QGraphicsRoundedRectangleItem()
-                        if j == "=":
-                            item.setBrush(QBrush(BUTTON_BACKGROUND_COLOR))
-                        else:
-                            item.setBrush(QBrush(BUTTON_LIGHT_COLOR))
-                        item.setRadius(RADIUS)
-                        item.setPos(xx, yy)
-                        item.setSize(ww-5, hh-5)
-                        self._scene.addItem(item)
-                        self._pageGroup.append(item)
-                        item = QGraphicsTextItem()
-                        item.setPlainText(j)
-                        item.setFont(QFont("微软雅黑", 14))
-                        if j == "=":
-                            item.setDefaultTextColor(QColor(BUTTON_FOREGROUND_COLOR))
-                        item.setPos(xx+ww/2-item.boundingRect().width()/2, yy+hh/2-15)
-                        self._scene.addItem(item)
-                        self._pageGroup.append(item)
-                        xx += ww
-                    yy += hh
-        elif self._menu[self._index][0] == 7: # 媒体中心
-            try:
-                self._pageChunk = 1000/(self._menu[self._index][3]["video"].get(5)+10)
-            except (KeyError, cv2.error):
-                self._pageChunk = self._chunk
-            try:
-                if not self._menu[self._index][3]["prepared"]:
-                    raise KeyError
-                path = self._menu[self._index][3]["path"]
-                item = QGraphicsRoundedRectangleItem()
-                item.setBrush(QColor("#000000"))
-                item.setRadius(RADIUS)
-                item.setPos(x, y)
-                item.setSize(width, height)
-                self._scene.addItem(item)
-                self._pageGroup.append(item)
-                if path is not None and self._menu[self._index][3]["startT"].value != 0:
-                    # self._chunk = fps
-                    fps = self._menu[self._index][3]["video"].get(5)
-                    item = QGraphicsRoundedRectangleItem()
-                    item.setBrush(QColor("#000000"))
-                    item.setRadius(RADIUS)
-                    item.setOpacity(0.6)
-                    item.setPos(x, y)
-                    item.setSize(width, 30)
-                    item.setZValue(150)
-                    self._scene.addItem(item)
-                    self._pageGroup.append(item)
-                    item = QGraphicsTextItem()
-                    item.setPlainText(path)
-                    item.setDefaultTextColor(QColor("#ffffff"))
-                    item.setOpacity(0.6)
-                    item.setPos(x+5, y+5)
-                    item.setZValue(150)
-                    self._scene.addItem(item)
-                    self._pageGroup.append(item)
-                    if self._menu[self._index][3]["now"] > (time.time()-self._menu[self._index][3]["startT"].value)*fps:
-                        frame = self._menu[self._index][3]["frame"]
-                    else:
-                        while self._menu[self._index][3]["now"] < (time.time()-self._menu[self._index][3]["startT"].value)*fps:
-                            ret, frame = self._menu[self._index][3]["video"].read()
-                            if not ret:
-                                self._menu[self._index][3]["video"] = cv2.VideoCapture(self._menu[self._index][3]["path"])
-                                continue
-                            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                            self._menu[self._index][3]["now"] += 1
-                        self._menu[self._index][3]["frame"] = frame
-                        # print(self._menu[self._index][3]["now"])
-                    item = QGraphicsRoundedRectangleImageItem()
-                    item._image = QPixmap.fromImage(QImage(frame, frame.shape[1], frame.shape[0], frame.shape[1]*3, QImage.Format.Format_RGB888))
-                    item.setRadius(RADIUS)
-                    item.setPos(x, y)
-                    item.setSize(width, height)
-                    self._scene.addItem(item)
-                    self._pageGroup.append(item)
-            except KeyError as msg:
-                item = QGraphicsRoundedRectangleItem()
-                item.setBrush(QBrush(BUTTON_BACKGROUND_COLOR))
-                item.setPos(x+width/2-80, y+height/2-15)
-                item.setRadius(RADIUS)
-                item.setSize(160, 30)
-                self._scene.addItem(item)
-                self._pageGroup.append(item)
-                item = QGraphicsTextItem()
-                item.setPlainText("打开媒体文件")
-                item.setDefaultTextColor(QColor(BUTTON_FOREGROUND_COLOR))
-                item.setPos(x+width/2-40, y+height/2-10)
-                self._scene.addItem(item)
-                self._pageGroup.append(item)
+        self._menu[self._index].repaint(x, y, width, height)
         for i in range(len(self._menu)):
-            if i == self._index:
-                continue
-            if self._menu[i][0] == 7:
-                try:
-                    # fps=30 测试样本: 《崩坏: 星穹铁道》白露角色 PV
-                    # fps=60 测试样本: 《原神》官方网站主页宣传 PV
-                    # 初次测试
-                    # fps=30 时接近满帧
-                    # fps=60 时实际播放约 12 帧
-                    # 修改后测试
-                    # fps=30 时接近满帧
-                    # fps=60 时约20-40帧 **瓶颈转移到生产者进程**
-                    if not self._menu[i][3]["prepared"]:
-                        raise KeyError
-                    fps = self._menu[i][3]["video"].get(5)
-                    while self._menu[i][3]["now"] < (time.time()-self._menu[i][3]["startT"].value)*fps:
-                        ret, self._menu[i][3]["frame"] = self._menu[i][3]["video"].read()
-                        if not ret:
-                            self._menu[i][3]["video"] = cv2.VideoCapture(self._menu[i][3]["path"])
-                            continue
-                        self._menu[i][3]["frame"] = cv2.cvtColor(self._menu[i][3]["frame"], cv2.COLOR_BGR2RGB)
-                        self._menu[i][3]["now"] += 1
-                except KeyError:
-                    pass
+            if i != self._index:
+                self._menu[i].background()
         self._pageTimer.setInterval(self._pageChunk)
     
     def messageTimer(self):
@@ -1042,9 +640,7 @@ class MainWindow(QMainWindow):
                 self.setWindowOpacity((40-self._closeCount/2)/100)
                 self._closeCount += 1
                 if self._closeCount == 40:
-                    self.hide()
-                    pool.shutdown()
-                    sys.exit(0)
+                    exitProgram()
             elif CLOSE_ANIMATION == 1:
                 if self._closeCount <= 15:
                     new_x = self.x()*1.005
@@ -1055,28 +651,29 @@ class MainWindow(QMainWindow):
                 self.setGeometry(new_x, new_y, self.width(), self.height())
                 self._closeCount += 1
                 if new_y > self.screen().size().height():
-                    self.hide()
-                    pool.shutdown()
-                    sys.exit(0)
+                    exitProgram()
             elif CLOSE_ANIMATION == 2:
                 self.setWindowOpacity((80-self._closeCount*2)/100)
                 self._closeCount += 1
                 if self._closeCount == 40:
-                    self.hide()
-                    pool.shutdown()
-                    sys.exit(0)
+                    exitProgram()
             else:
-                self.hide()
-                pool.shutdown()
-                sys.exit(0)
+                exitProgram()
             self.addMessage(title="功能请求", message="需要更改的动画 应当使用系统时间戳而不是帧时间戳", source="self.timer")
-            # warnings.warn("需要更改的动画 应当使用系统时间戳而不是帧时间戳")
 
         if self._configured:
 
             for i in self._group:
                 self._scene.removeItem(i)
             self._group = []
+
+            item = QGraphicsRoundedRectangleItem() # 程序背景
+            item.setBrush(QBrush(MAIN_BACKGROUND_COLOR))
+            item.setRadius(RADIUS)
+            item.setPos(0, 0)
+            item.setSize(self.width(), self.height())
+            self._scene.addItem(item)
+            self._group.append(item)
 
             item = QGraphicsRoundedRectangleItem() # 标签栏背景
             item.setBrush(QBrush(MAIN_CAPTION_COLOR))
@@ -1101,7 +698,7 @@ class MainWindow(QMainWindow):
                 if self.calculateLeftY(i) < 30:
                     continue
                 item = QGraphicsTextItem() # 标签栏文字
-                item.setPlainText(self._menu[i][1])
+                item.setPlainText(self._menu[i].title)
                 item.setDefaultTextColor(QColor(MAIN_TEXT_COLOR))
                 item.adjustSize()
                 item.setPos(15, 8+self.calculateLeftY(i))
@@ -1223,7 +820,7 @@ class MainWindow(QMainWindow):
             self._mainGroup.append(item)
         item = QGraphicsTextItem() # 地址
         if self._location == "":
-            item.setPlainText(self._menu[self._index][2])
+            item.setPlainText(self._menu[self._index].location)
             item.setDefaultTextColor(QColor(Qt.gray))
         else:
             item.setPlainText(self._location)
@@ -1249,7 +846,7 @@ class MainWindow(QMainWindow):
             self._scene.addItem(item)
             self._mainGroup.append(item)
             item = QGraphicsTextItem() # 拖动文字
-            item.setPlainText(self._menu[self._onLeftDragIndex][1])
+            item.setPlainText(self._menu[self._onLeftDragIndex].title)
             item.setDefaultTextColor(QColor(MAIN_TEXT_COLOR))
             item.adjustSize()
             item.setOpacity(0.6)

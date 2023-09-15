@@ -21,6 +21,36 @@ def get_cpu_status():
     cpu_stat = psutil.cpu_stats()
     return CPU_STATUS(cpu_count, cpu_count_logical, cpu_percent, cpu_tot_percent, cpu_freq, cpu_times, cpu_times_percent, cpu_stat)
 
+def get_memory_status():
+
+    memory_info = psutil.virtual_memory()
+    return memory_info
+
+def get_pids():
+
+    return psutil.pids()
+
+class Monitor_Service(threading.Thread):
+
+    def __init__(self):
+
+        super().__init__()
+        class freqlike():
+            def  __init__(self, freq):
+                self.current = freq
+        self.cpu = CPU_STATUS(0, 0, [0], 0, [freqlike(0)], 0, 0, 0)
+        self.memory = get_memory_status()
+    
+    def run(self):
+
+        self.flag = True
+        while self.flag:
+            t = time.time()
+            self.cpu = get_cpu_status()
+            self.memory = get_memory_status()
+            while time.time()-t < 1:
+                time.sleep(0.01)
+
 class CPU_Monitor():
 
     def __init__(self, count:int=1):
@@ -53,7 +83,7 @@ class CPU_Monitor():
         self.chart.addAxis(self.axisY, Qt.AlignLeft)
         self.chart.addAxis(self.axisY2, Qt.AlignRight)
         # self.chart.legend().setAlignment(Qt.AlignRight)
-        self.chart.setAnimationOptions(QChart.SeriesAnimations)
+        # self.chart.setAnimationOptions(QChart.SeriesAnimations)
         self.tot_series = QLineSeries()
         self.tot_series.setName("CPU 总占用率")
         self.tot_series.setBrush(QBrush(Qt.blue))
@@ -86,15 +116,6 @@ class CPU_Monitor():
             self.tot_series.append(i, self.tot_percent[i])
         for i in range(len(self.freq)):
             self.freq_series.append(i, self.freq[i])
-
-def get_memory_status():
-
-    memory_info = psutil.virtual_memory()
-    return memory_info
-
-def get_pids():
-
-    return psutil.pids()
 
 class Monitor(threading.Thread):
 

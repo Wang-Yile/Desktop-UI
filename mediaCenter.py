@@ -22,7 +22,9 @@ def sound(path, startT, pause):
         shutil.copyfile(path, copy_to)
         if os.path.exists(name):
             os.remove(name)
-        subprocess.run("powershell.exe; cd '" + os.path.dirname(copy_to) + "'; ffmpeg -i " + os.path.basename(copy_to) + " " + name, shell=True)
+        cmd = "powershell.exe; cd '" + os.path.dirname(copy_to) + "'; ffmpeg -i " + os.path.basename(copy_to) + " -vn " + name
+        print(cmd)
+        subprocess.run(cmd, shell=True)
         if os.path.exists(name):
             path = name
         else:
